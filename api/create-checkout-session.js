@@ -20,8 +20,7 @@ module.exports = async (req, res) => {
   try {
     const session = await stripe.checkout.sessions.create({
       mode: 'payment',
-      payment_method_types: ['card'],
-      customer_email: email,
+     customer_email: email,
       managed_payments: { enabled: true },
       line_items: [
         {
