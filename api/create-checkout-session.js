@@ -1,5 +1,5 @@
 const Stripe = require('stripe');
-const stripe = Stripe(process.env.STRIPE_SECRET_KEY);
+const stripe = Stripe(process.env.STRIPE_SECRET_KEY, { apiVersion: '2025-03-31.basil'});
 
 // POST /api/create-checkout-session
 // body: { email: "user@example.com" }
