@@ -1,0 +1,1071 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Ledger — Invoice & Quote Generator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;0,9..144,700;1,9..144,500&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    box-sizing: border-box;
+    --paper: #F5F3ED;
+    --paper-alt: #ECE8DC;
+    --paper-line: #D9D4C5;
+    --ink: #1B1B17;
+    --ink-soft: #6B6858;
+    --ink-faint: #9A9682;
+    --stamp: #2F5D50;
+    --stamp-soft: #E4EBE7;
+    --rust: #A23E2E;
+    --rust-soft: #F3E3DF;
+    --white: #FFFFFF;
+    --shadow: rgba(27, 27, 23, 0.08);
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --paper: #17181B;
+      --paper-alt: #1E2024;
+      --paper-line: #34363B;
+      --ink: #ECE9E0;
+      --ink-soft: #A6A398;
+      --ink-faint: #706D63;
+      --stamp: #6FAE97;
+      --stamp-soft: #1E2B27;
+      --rust: #D98D7C;
+      --rust-soft: #2E211E;
+      --white: #202226;
+      --shadow: rgba(0, 0, 0, 0.35);
+    }
+  }
+  :root[data-theme="dark"] {
+    --paper: #17181B;
+    --paper-alt: #1E2024;
+    --paper-line: #34363B;
+    --ink: #ECE9E0;
+    --ink-soft: #A6A398;
+    --ink-faint: #706D63;
+    --stamp: #6FAE97;
+    --stamp-soft: #1E2B27;
+    --rust: #D98D7C;
+    --rust-soft: #2E211E;
+    --white: #202226;
+    --shadow: rgba(0, 0, 0, 0.35);
+  }
+  * { box-sizing: border-box; }
+  html { scroll-padding-top: env(safe-area-inset-top, 0px); }
+  html, body { height: 100%; }
+  body {
+    margin: 0;
+    background: var(--paper-alt);
+    color: var(--ink);
+    font-family: 'IBM Plex Sans', -apple-system, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  ::selection { background: var(--stamp); color: var(--white); }
+
+  .app {
+    max-width: 1320px;
+    margin: 0 auto;
+    padding: 28px 20px 60px;
+  }
+
+  .topbar {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 28px;
+    flex-wrap: wrap;
+  }
+  .brand {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+  }
+  .brand-mark {
+    font-family: 'Fraunces', serif;
+    font-weight: 600;
+    font-size: 26px;
+    letter-spacing: -0.01em;
+  }
+  .brand-tag {
+    font-size: 13px;
+    color: var(--ink-soft);
+  }
+  .topbar-actions { display: flex; gap: 8px; align-items: center; }
+
+  .icon-btn {
+    border: 1px solid var(--paper-line);
+    background: var(--paper);
+    color: var(--ink);
+    width: 38px; height: 38px;
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+  }
+  .icon-btn:hover { border-color: var(--ink-faint); }
+
+  .layout {
+    display: grid;
+    grid-template-columns: minmax(320px, 420px) 1fr;
+    gap: 24px;
+    align-items: start;
+  }
+  @media (max-width: 880px) {
+    .layout { grid-template-columns: 1fr; }
+    .pane { display: none; }
+    .pane.active { display: block; }
+    .mobile-tabs { display: flex; }
+  }
+
+  .mobile-tabs {
+    display: none;
+    gap: 6px;
+    background: var(--paper);
+    border: 1px solid var(--paper-line);
+    border-radius: 10px;
+    padding: 4px;
+    margin-bottom: 16px;
+  }
+  .mobile-tabs button {
+    flex: 1;
+    padding: 9px 0;
+    border: none;
+    background: transparent;
+    border-radius: 7px;
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--ink-soft);
+    cursor: pointer;
+  }
+  .mobile-tabs button.active { background: var(--stamp); color: var(--white); }
+
+  /* ---- FORM PANE ---- */
+  .card {
+    background: var(--paper);
+    border: 1px solid var(--paper-line);
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 16px;
+  }
+  .card h2 {
+    font-family: 'Fraunces', serif;
+    font-weight: 600;
+    font-size: 16px;
+    margin: 0 0 14px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .card h2 .n {
+    width: 20px; height: 20px;
+    border-radius: 50%;
+    background: var(--stamp-soft);
+    color: var(--stamp);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+
+  label {
+    display: block;
+    font-size: 12px;
+    color: var(--ink-soft);
+    margin-bottom: 5px;
+  }
+  .field { margin-bottom: 12px; }
+  .row { display: grid; gap: 10px; }
+  .row-2 { grid-template-columns: 1fr 1fr; }
+  .row-3 { grid-template-columns: 1.6fr 0.8fr 0.8fr; }
+
+  input, textarea, select {
+    width: 100%;
+    background: var(--white);
+    border: 1px solid var(--paper-line);
+    border-radius: 7px;
+    padding: 9px 10px;
+    font-family: inherit;
+    font-size: 14px;
+    color: var(--ink);
+  }
+  input:focus, textarea:focus, select:focus {
+    outline: 2px solid var(--stamp);
+    outline-offset: 1px;
+    border-color: transparent;
+  }
+  textarea { resize: vertical; min-height: 60px; }
+
+  .items-head {
+    display: grid;
+    grid-template-columns: 1fr 50px 70px 70px 26px;
+    gap: 8px;
+    font-size: 11px;
+    color: var(--ink-faint);
+    padding: 0 2px 6px;
+  }
+  .item-row {
+    display: grid;
+    grid-template-columns: 1fr 50px 70px 70px 26px;
+    gap: 8px;
+    align-items: center;
+    margin-bottom: 8px;
+  }
+  .item-row input { padding: 7px 8px; font-size: 13px; }
+  .amt-display {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 13px;
+    text-align: right;
+    padding-right: 2px;
+  }
+  .del-row {
+    background: none;
+    border: none;
+    color: var(--ink-faint);
+    cursor: pointer;
+    width: 24px; height: 24px;
+    display: flex; align-items: center; justify-content: center;
+    border-radius: 5px;
+    padding: 0;
+  }
+  .del-row:hover { color: var(--rust); background: var(--rust-soft); }
+
+  .add-item-btn {
+    background: none;
+    border: 1px dashed var(--ink-faint);
+    color: var(--ink-soft);
+    font-family: inherit;
+    font-size: 13px;
+    border-radius: 7px;
+    padding: 8px;
+    width: 100%;
+    cursor: pointer;
+    margin-top: 4px;
+  }
+  .add-item-btn:hover { border-color: var(--stamp); color: var(--stamp); }
+
+  .btn {
+    font-family: inherit;
+    font-weight: 600;
+    font-size: 14px;
+    border-radius: 8px;
+    padding: 11px 16px;
+    border: 1px solid transparent;
+    cursor: pointer;
+  }
+  .btn-primary { background: var(--stamp); color: var(--white); }
+  .btn-primary:hover { filter: brightness(1.08); }
+  .btn-ghost { background: transparent; border-color: var(--paper-line); color: var(--ink); }
+  .btn-ghost:hover { border-color: var(--ink-faint); }
+  .btn-block { width: 100%; }
+  .btn-row { display: flex; gap: 8px; }
+
+  .status-toggle {
+    display: flex;
+    gap: 6px;
+  }
+  .status-toggle button {
+    flex: 1;
+    padding: 8px 0;
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 600;
+    border-radius: 7px;
+    border: 1px solid var(--paper-line);
+    background: var(--white);
+    color: var(--ink-soft);
+    cursor: pointer;
+  }
+  .status-toggle button.active[data-s="draft"] { background: var(--ink-faint); color: var(--white); border-color: transparent; }
+  .status-toggle button.active[data-s="sent"] { background: #C9A227; color: var(--white); border-color: transparent; }
+  .status-toggle button.active[data-s="paid"] { background: var(--stamp); color: var(--white); border-color: transparent; }
+
+  /* saved list */
+  .saved-list { display: flex; flex-direction: column; gap: 6px; max-height: 220px; overflow-y: auto; }
+  .saved-item {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 8px 10px;
+    border: 1px solid var(--paper-line);
+    border-radius: 7px;
+    font-size: 12.5px;
+    cursor: pointer;
+    background: var(--white);
+  }
+  .saved-item:hover { border-color: var(--stamp); }
+  .saved-item .meta { color: var(--ink-faint); font-size: 11px; }
+  .saved-item .del {
+    background: none; border: none; color: var(--ink-faint); cursor: pointer;
+    padding: 2px 4px;
+  }
+  .saved-item .del:hover { color: var(--rust); }
+  .empty-note { font-size: 12.5px; color: var(--ink-faint); padding: 4px 2px; }
+
+  /* ---- PREVIEW PANE ---- */
+  .preview-wrap {
+    position: sticky;
+    top: 20px;
+  }
+  .sheet {
+    background: var(--white);
+    border: 1px solid var(--paper-line);
+    border-radius: 4px;
+    box-shadow: 0 10px 30px var(--shadow);
+    padding: 46px 44px;
+    position: relative;
+    overflow: hidden;
+    max-width: 720px;
+    margin: 0 auto;
+  }
+  .sheet-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    padding-bottom: 22px;
+    border-bottom: 2px solid var(--ink);
+    margin-bottom: 24px;
+  }
+  .doc-kind {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    color: var(--ink-faint);
+    margin-bottom: 6px;
+  }
+  .doc-title {
+    font-family: 'Fraunces', serif;
+    font-weight: 700;
+    font-size: 34px;
+    line-height: 1;
+    color: var(--ink);
+  }
+  .doc-num {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12.5px;
+    color: var(--ink-soft);
+    margin-top: 8px;
+  }
+  .from-block { text-align: right; font-size: 13px; line-height: 1.5; color: var(--ink-soft); max-width: 240px; }
+  .from-name { font-weight: 600; color: var(--ink); font-size: 14.5px; margin-bottom: 2px; }
+
+  .meta-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 16px;
+    margin-bottom: 28px;
+  }
+  .meta-block .k { font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-faint); margin-bottom: 4px; }
+  .meta-block .v { font-size: 13.5px; color: var(--ink); line-height: 1.5; }
+  .meta-block .v.name { font-weight: 600; }
+
+  table.items { width: 100%; border-collapse: collapse; margin-bottom: 4px; }
+  table.items thead th {
+    text-align: left;
+    font-size: 10.5px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--ink-faint);
+    padding-bottom: 8px;
+    border-bottom: 1.5px solid var(--ink);
+    font-weight: 600;
+  }
+  table.items thead th.num { text-align: right; }
+  table.items tbody td {
+    padding: 10px 0;
+    border-bottom: 1px solid var(--paper-line);
+    font-size: 13.5px;
+    vertical-align: top;
+  }
+  table.items tbody td.num {
+    text-align: right;
+    font-family: 'IBM Plex Mono', monospace;
+    white-space: nowrap;
+  }
+  table.items tbody td.desc { font-weight: 500; }
+
+  .totals { margin-top: 18px; margin-left: auto; width: 260px; }
+  .totals-row { display: flex; justify-content: space-between; font-size: 13.5px; padding: 6px 0; color: var(--ink-soft); }
+  .totals-row.grand {
+    border-top: 2px solid var(--ink);
+    margin-top: 6px;
+    padding-top: 12px;
+    font-family: 'Fraunces', serif;
+    font-weight: 700;
+    font-size: 20px;
+    color: var(--ink);
+  }
+  .totals-row .val { font-family: 'IBM Plex Mono', monospace; }
+  .totals-row.grand .val { font-family: 'Fraunces', serif; }
+
+  .notes-block { margin-top: 30px; padding-top: 18px; border-top: 1px solid var(--paper-line); font-size: 12.5px; color: var(--ink-soft); line-height: 1.6; white-space: pre-wrap; }
+  .notes-block .k { font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-faint); margin-bottom: 6px; }
+
+  .watermark {
+    position: absolute;
+    bottom: 40px; right: 44px;
+    font-size: 10px;
+    color: var(--ink-faint);
+    font-family: 'IBM Plex Mono', monospace;
+    letter-spacing: 0.03em;
+  }
+
+  .stamp {
+    position: absolute;
+    top: 130px; right: 60px;
+    width: 130px; height: 130px;
+    border: 3.5px solid var(--stamp);
+    border-radius: 50%;
+    color: var(--stamp);
+    display: flex; align-items: center; justify-content: center;
+    transform: rotate(-16deg);
+    opacity: 0;
+    transition: opacity 0.2s ease, transform 0.2s ease;
+    pointer-events: none;
+  }
+  .stamp.show { opacity: 0.85; transform: rotate(-16deg) scale(1); }
+  .stamp::before {
+    content: "";
+    position: absolute;
+    inset: 8px;
+    border: 1px solid var(--stamp);
+    border-radius: 50%;
+  }
+  .stamp span {
+    font-family: 'Fraunces', serif;
+    font-weight: 700;
+    font-size: 22px;
+    letter-spacing: 0.04em;
+  }
+
+  .preview-actions {
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+    margin-top: 18px;
+  }
+
+  .unlock-note {
+    max-width: 720px;
+    margin: 14px auto 0;
+    font-size: 12px;
+    color: var(--ink-faint);
+    text-align: center;
+    line-height: 1.6;
+  }
+  .unlock-note button {
+    background: none; border: none; color: var(--stamp); font-weight: 600;
+    cursor: pointer; font-family: inherit; font-size: 12px; text-decoration: underline;
+    padding: 0;
+  }
+
+  @media print {
+    body * { visibility: hidden; }
+    .sheet, .sheet * { visibility: visible; }
+    .sheet {
+      position: absolute; top: 0; left: 0;
+      box-shadow: none; border: none; width: 100%; max-width: none;
+      padding: 20px 30px;
+    }
+    .preview-actions, .mobile-tabs { display: none !important; }
+  }
+
+  @media (max-width: 520px) {
+    .sheet { padding: 30px 22px; }
+    .doc-title { font-size: 26px; }
+    .sheet-head { flex-direction: column; gap: 16px; }
+    .from-block { text-align: left; max-width: none; }
+    .meta-grid { grid-template-columns: 1fr 1fr; }
+    .stamp { width: 96px; height: 96px; top: 100px; right: 24px; }
+    .stamp span { font-size: 16px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="app">
+  <div class="topbar">
+    <div class="brand">
+      <span class="brand-mark">Ledger</span>
+      <span class="brand-tag">invoices & quotes, done in a minute</span>
+    </div>
+    <div class="topbar-actions">
+      <button class="icon-btn" id="themeToggle" title="Toggle theme" aria-label="Toggle theme">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path id="themeIcon" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.36 6.36l-.7-.7M6.34 6.34l-.7-.7m12.02 0l-.7.7M6.34 17.66l-.7.7M12 7a5 5 0 100 10 5 5 0 000-10z"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <div class="mobile-tabs">
+    <button id="tabFormBtn" class="active">Edit</button>
+    <button id="tabPreviewBtn">Preview</button>
+  </div>
+
+  <div class="layout">
+    <!-- FORM PANE -->
+    <div class="pane active" id="formPane">
+
+      <div class="card">
+        <h2><span class="n">1</span>Document</h2>
+        <div class="row row-2 field">
+          <div>
+            <label for="docType">Type</label>
+            <select id="docType">
+              <option value="Invoice">Invoice</option>
+              <option value="Quote">Quote</option>
+            </select>
+          </div>
+          <div>
+            <label for="docNumber">Number</label>
+            <input id="docNumber" type="text" value="INV-0001">
+          </div>
+        </div>
+        <div class="row row-2 field">
+          <div>
+            <label for="issueDate">Issue date</label>
+            <input id="issueDate" type="date">
+          </div>
+          <div>
+            <label for="dueDate">Due date</label>
+            <input id="dueDate" type="date">
+          </div>
+        </div>
+        <div class="field">
+          <label>Status</label>
+          <div class="status-toggle">
+            <button data-s="draft" class="active">Draft</button>
+            <button data-s="sent">Sent</button>
+            <button data-s="paid">Paid</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2><span class="n">2</span>Your details</h2>
+        <div class="field">
+          <label for="fromName">Your name / business</label>
+          <input id="fromName" type="text" placeholder="Jordan Ellis Design">
+        </div>
+        <div class="row row-2 field">
+          <div>
+            <label for="fromEmail">Email</label>
+            <input id="fromEmail" type="email" placeholder="jordan@studio.com">
+          </div>
+          <div>
+            <label for="currency">Currency</label>
+            <select id="currency">
+              <option value="$">$ USD</option>
+              <option value="€">€ EUR</option>
+              <option value="£">£ GBP</option>
+              <option value="₹">₹ INR</option>
+              <option value="RF">RF RWF</option>
+              <option value="¥">¥ JPY</option>
+              <option value="A$">A$ AUD</option>
+              <option value="C$">C$ CAD</option>
+            </select>
+          </div>
+        </div>
+        <div class="field">
+          <label for="fromAddress">Address (optional)</label>
+          <textarea id="fromAddress" rows="2" placeholder="123 Studio Lane, Portland, OR"></textarea>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2><span class="n">3</span>Bill to</h2>
+        <div class="field">
+          <label for="toName">Client name</label>
+          <input id="toName" type="text" placeholder="Riverside Cafe">
+        </div>
+        <div class="row row-2 field">
+          <div>
+            <label for="toEmail">Client email</label>
+            <input id="toEmail" type="email" placeholder="hello@riverside.com">
+          </div>
+          <div>
+            <label for="toAddress">Client address (optional)</label>
+            <input id="toAddress" type="text" placeholder="">
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2><span class="n">4</span>Line items</h2>
+        <div class="items-head">
+          <span>Description</span><span>Qty</span><span>Rate</span><span>Amt</span><span></span>
+        </div>
+        <div id="itemsList"></div>
+        <button class="add-item-btn" id="addItemBtn">+ Add line item</button>
+      </div>
+
+      <div class="card">
+        <h2><span class="n">5</span>Tax & notes</h2>
+        <div class="row row-2 field">
+          <div>
+            <label for="taxRate">Tax rate (%)</label>
+            <input id="taxRate" type="number" min="0" step="0.1" value="0">
+          </div>
+          <div>
+            <label for="discount">Discount ($)</label>
+            <input id="discount" type="number" min="0" step="0.01" value="0">
+          </div>
+        </div>
+        <div class="field">
+          <label for="notes">Notes / payment terms</label>
+          <textarea id="notes" rows="3" placeholder="Thanks for the work! Payment due within 14 days via bank transfer or card.">Thanks for the work! Payment due within 14 days.</textarea>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2><span class="n">6</span>Saved</h2>
+        <div class="btn-row" style="margin-bottom:12px;">
+          <button class="btn btn-primary btn-block" id="saveBtn">Save this document</button>
+          <button class="btn btn-ghost" id="newBtn">New</button>
+        </div>
+        <div class="saved-list" id="savedList"></div>
+      </div>
+
+    </div>
+
+    <!-- PREVIEW PANE -->
+    <div class="pane" id="previewPane">
+      <div class="preview-wrap">
+        <div class="sheet" id="sheet">
+          <div class="stamp" id="paidStamp"><span>PAID</span></div>
+
+          <div class="sheet-head">
+            <div>
+              <div class="doc-kind" id="pDocKind">INVOICE</div>
+              <div class="doc-title" id="pDocType">Invoice</div>
+              <div class="doc-num" id="pDocNum">No. INV-0001</div>
+            </div>
+            <div class="from-block">
+              <div class="from-name" id="pFromName">Your business</div>
+              <div id="pFromEmail"></div>
+              <div id="pFromAddress"></div>
+            </div>
+          </div>
+
+          <div class="meta-grid">
+            <div class="meta-block">
+              <div class="k">Billed to</div>
+              <div class="v name" id="pToName">Client name</div>
+              <div class="v" id="pToEmail"></div>
+            </div>
+            <div class="meta-block">
+              <div class="k">Issue date</div>
+              <div class="v" id="pIssueDate">—</div>
+            </div>
+            <div class="meta-block">
+              <div class="k">Due date</div>
+              <div class="v" id="pDueDate">—</div>
+            </div>
+          </div>
+
+          <table class="items">
+            <thead>
+              <tr><th>Description</th><th class="num">Qty</th><th class="num">Rate</th><th class="num">Amount</th></tr>
+            </thead>
+            <tbody id="pItemsBody"></tbody>
+          </table>
+
+          <div class="totals">
+            <div class="totals-row"><span>Subtotal</span><span class="val" id="pSubtotal">$0.00</span></div>
+            <div class="totals-row" id="pDiscountRow" style="display:none;"><span>Discount</span><span class="val" id="pDiscount">–$0.00</span></div>
+            <div class="totals-row" id="pTaxRow" style="display:none;"><span>Tax</span><span class="val" id="pTax">$0.00</span></div>
+            <div class="totals-row grand"><span>Total</span><span class="val" id="pTotal">$0.00</span></div>
+          </div>
+
+          <div class="notes-block" id="pNotesBlock">
+            <div class="k">Notes</div>
+            <div id="pNotes"></div>
+          </div>
+
+          <div class="watermark" id="watermark">Made with Ledger</div>
+        </div>
+
+        <div class="preview-actions">
+          <button class="btn btn-primary" id="printBtn">Download / print PDF</button>
+        </div>
+        <div class="unlock-note" id="unlockNote">
+          Free plan includes the "Made with Ledger" mark on exports.
+          <button id="unlockBtn">Remove it for $9 one-time →</button>
+        </div>
+        <div class="unlock-note" id="unlockedNote" style="display:none;">
+          Watermark removed for <span id="unlockedEmail"></span>. Thanks for supporting Ledger!
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  const $ = id => document.getElementById(id);
+  const fmtMoney = (n, cur) => cur + (isNaN(n) ? 0 : n).toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2});
+
+  // ---------- Theme ----------
+  const themeToggle = $('themeToggle');
+  function applyThemeIcon(theme) {
+    const isDark = theme === 'dark' || (theme !== 'light' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+    themeToggle.querySelector('svg').innerHTML = isDark
+      ? '<path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/>'
+      : '<path d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.36 6.36l-.7-.7M6.34 6.34l-.7-.7m12.02 0l-.7.7M6.34 17.66l-.7.7M12 7a5 5 0 100 10 5 5 0 000-10z"/>';
+  }
+  let savedTheme = null;
+  try { savedTheme = localStorage.getItem('ledger_theme'); } catch(e) {}
+  if (savedTheme) document.documentElement.setAttribute('data-theme', savedTheme);
+  applyThemeIcon(savedTheme);
+  themeToggle.addEventListener('click', () => {
+    const current = document.documentElement.getAttribute('data-theme') ||
+      (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+    const next = current === 'dark' ? 'light' : 'dark';
+    document.documentElement.setAttribute('data-theme', next);
+    applyThemeIcon(next);
+    try { localStorage.setItem('ledger_theme', next); } catch(e) {}
+  });
+
+  // ---------- Mobile tabs ----------
+  const tabFormBtn = $('tabFormBtn'), tabPreviewBtn = $('tabPreviewBtn');
+  const formPane = $('formPane'), previewPane = $('previewPane');
+  tabFormBtn.addEventListener('click', () => {
+    formPane.classList.add('active'); previewPane.classList.remove('active');
+    tabFormBtn.classList.add('active'); tabPreviewBtn.classList.remove('active');
+  });
+  tabPreviewBtn.addEventListener('click', () => {
+    previewPane.classList.add('active'); formPane.classList.remove('active');
+    tabPreviewBtn.classList.add('active'); tabFormBtn.classList.remove('active');
+  });
+
+  // ---------- State ----------
+  let items = [
+    { desc: 'Website design', qty: 1, rate: 1200 },
+    { desc: 'Revisions (2 rounds)', qty: 1, rate: 150 }
+  ];
+  let status = 'draft';
+  let unlocked = false;
+  try { unlocked = localStorage.getItem('ledger_unlocked') === 'true'; } catch(e) {}
+
+  // ---------- Items rendering ----------
+  const itemsList = $('itemsList');
+  function renderItems() {
+    itemsList.innerHTML = '';
+    items.forEach((item, i) => {
+      const row = document.createElement('div');
+      row.className = 'item-row';
+      row.innerHTML = `
+        <input type="text" value="${escapeAttr(item.desc)}" data-i="${i}" data-f="desc" placeholder="Item description">
+        <input type="number" min="0" step="1" value="${item.qty}" data-i="${i}" data-f="qty">
+        <input type="number" min="0" step="0.01" value="${item.rate}" data-i="${i}" data-f="rate">
+        <div class="amt-display">${(item.qty * item.rate).toFixed(2)}</div>
+        <button class="del-row" data-i="${i}" title="Remove">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+        </button>
+      `;
+      itemsList.appendChild(row);
+    });
+    itemsList.querySelectorAll('input').forEach(inp => {
+      inp.addEventListener('input', e => {
+        const i = +e.target.dataset.i, f = e.target.dataset.f;
+        items[i][f] = f === 'desc' ? e.target.value : parseFloat(e.target.value) || 0;
+        renderItems();
+        renderPreview();
+      });
+    });
+    itemsList.querySelectorAll('.del-row').forEach(btn => {
+      btn.addEventListener('click', e => {
+        const i = +e.currentTarget.dataset.i;
+        items.splice(i, 1);
+        renderItems();
+        renderPreview();
+      });
+    });
+  }
+  $('addItemBtn').addEventListener('click', () => {
+    items.push({ desc: '', qty: 1, rate: 0 });
+    renderItems();
+    renderPreview();
+  });
+
+  function escapeAttr(s) {
+    return (s || '').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
+  }
+  function escapeHtml(s) {
+    return (s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  // ---------- Status toggle ----------
+  document.querySelectorAll('.status-toggle button').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.status-toggle button').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      status = btn.dataset.s;
+      renderPreview();
+    });
+  });
+
+  // ---------- Preview rendering ----------
+  const formFields = ['docType','docNumber','issueDate','dueDate','fromName','fromEmail','fromAddress',
+    'toName','toEmail','toAddress','currency','taxRate','discount','notes'];
+  formFields.forEach(id => {
+    const el = $(id);
+    el.addEventListener('input', renderPreview);
+    el.addEventListener('change', renderPreview);
+  });
+
+  function renderPreview() {
+    const cur = $('currency').value;
+    const docType = $('docType').value;
+    $('pDocKind').textContent = docType.toUpperCase();
+    $('pDocType').textContent = docType;
+    $('pDocNum').textContent = 'No. ' + ($('docNumber').value || '—');
+
+    $('pFromName').textContent = $('fromName').value || 'Your business';
+    $('pFromEmail').textContent = $('fromEmail').value || '';
+    $('pFromAddress').textContent = $('fromAddress').value || '';
+
+    $('pToName').textContent = $('toName').value || 'Client name';
+    $('pToEmail').textContent = [$('toEmail').value, $('toAddress').value].filter(Boolean).join(' · ');
+
+    $('pIssueDate').textContent = formatDate($('issueDate').value) || '—';
+    $('pDueDate').textContent = formatDate($('dueDate').value) || '—';
+
+    const body = $('pItemsBody');
+    body.innerHTML = '';
+    let subtotal = 0;
+    items.forEach(item => {
+      const amt = (item.qty || 0) * (item.rate || 0);
+      subtotal += amt;
+      const tr = document.createElement('tr');
+      tr.innerHTML = `<td class="desc">${escapeHtml(item.desc) || '—'}</td><td class="num">${item.qty}</td><td class="num">${fmtMoney(item.rate, cur)}</td><td class="num">${fmtMoney(amt, cur)}</td>`;
+      body.appendChild(tr);
+    });
+
+    const discount = parseFloat($('discount').value) || 0;
+    const taxRate = parseFloat($('taxRate').value) || 0;
+    const taxable = Math.max(subtotal - discount, 0);
+    const tax = taxable * (taxRate / 100);
+    const total = taxable + tax;
+
+    $('pSubtotal').textContent = fmtMoney(subtotal, cur);
+    if (discount > 0) {
+      $('pDiscountRow').style.display = 'flex';
+      $('pDiscount').textContent = '–' + fmtMoney(discount, cur);
+    } else { $('pDiscountRow').style.display = 'none'; }
+    if (taxRate > 0) {
+      $('pTaxRow').style.display = 'flex';
+      $('pTax').textContent = fmtMoney(tax, cur);
+    } else { $('pTaxRow').style.display = 'none'; }
+    $('pTotal').textContent = fmtMoney(total, cur);
+
+    const notesVal = $('notes').value.trim();
+    $('pNotesBlock').style.display = notesVal ? 'block' : 'none';
+    $('pNotes').textContent = notesVal;
+
+    $('paidStamp').classList.toggle('show', status === 'paid');
+    $('watermark').style.display = unlocked ? 'none' : 'block';
+  }
+
+  function formatDate(val) {
+    if (!val) return '';
+    const d = new Date(val + 'T00:00:00');
+    if (isNaN(d)) return val;
+    return d.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+  }
+
+  // ---------- Save / load ----------
+  const STORAGE_KEY = 'ledger_documents_v1';
+  function loadDocs() {
+    try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || []; } catch(e) { return []; }
+  }
+  function persistDocs(docs) {
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(docs)); } catch(e) {}
+  }
+  function currentDoc() {
+    return {
+      id: Date.now().toString(36),
+      docType: $('docType').value,
+      docNumber: $('docNumber').value,
+      issueDate: $('issueDate').value,
+      dueDate: $('dueDate').value,
+      status,
+      fromName: $('fromName').value,
+      fromEmail: $('fromEmail').value,
+      fromAddress: $('fromAddress').value,
+      toName: $('toName').value,
+      toEmail: $('toEmail').value,
+      toAddress: $('toAddress').value,
+      currency: $('currency').value,
+      taxRate: $('taxRate').value,
+      discount: $('discount').value,
+      notes: $('notes').value,
+      items: JSON.parse(JSON.stringify(items))
+    };
+  }
+  function applyDoc(doc) {
+    $('docType').value = doc.docType || 'Invoice';
+    $('docNumber').value = doc.docNumber || '';
+    $('issueDate').value = doc.issueDate || '';
+    $('dueDate').value = doc.dueDate || '';
+    status = doc.status || 'draft';
+    document.querySelectorAll('.status-toggle button').forEach(b => b.classList.toggle('active', b.dataset.s === status));
+    $('fromName').value = doc.fromName || '';
+    $('fromEmail').value = doc.fromEmail || '';
+    $('fromAddress').value = doc.fromAddress || '';
+    $('toName').value = doc.toName || '';
+    $('toEmail').value = doc.toEmail || '';
+    $('toAddress').value = doc.toAddress || '';
+    $('currency').value = doc.currency || '$';
+    $('taxRate').value = doc.taxRate || 0;
+    $('discount').value = doc.discount || 0;
+    $('notes').value = doc.notes || '';
+    items = doc.items && doc.items.length ? JSON.parse(JSON.stringify(doc.items)) : [];
+    renderItems();
+    renderPreview();
+  }
+
+  function renderSavedList() {
+    const docs = loadDocs();
+    const list = $('savedList');
+    list.innerHTML = '';
+    if (!docs.length) {
+      list.innerHTML = '<div class="empty-note">Nothing saved yet — your documents stay in this browser.</div>';
+      return;
+    }
+    docs.slice().reverse().forEach(doc => {
+      const row = document.createElement('div');
+      row.className = 'saved-item';
+      row.innerHTML = `<div><div>${escapeHtml(doc.docNumber || 'Untitled')} — ${escapeHtml(doc.toName || 'No client')}</div><div class="meta">${escapeHtml(doc.docType)} · ${escapeHtml(doc.status)}</div></div><button class="del" title="Delete">✕</button>`;
+      row.addEventListener('click', (e) => {
+        if (e.target.closest('.del')) return;
+        applyDoc(doc);
+      });
+      row.querySelector('.del').addEventListener('click', (e) => {
+        e.stopPropagation();
+        const remaining = loadDocs().filter(d => d.id !== doc.id);
+        persistDocs(remaining);
+        renderSavedList();
+      });
+      list.appendChild(row);
+    });
+  }
+
+  $('saveBtn').addEventListener('click', () => {
+    const docs = loadDocs();
+    const doc = currentDoc();
+    docs.push(doc);
+    persistDocs(docs);
+    renderSavedList();
+    bumpInvoiceNumber();
+  });
+
+  $('newBtn').addEventListener('click', () => {
+    applyDoc({ docType: 'Invoice', docNumber: nextNumberGuess(), status: 'draft',
+      fromName: $('fromName').value, fromEmail: $('fromEmail').value, fromAddress: $('fromAddress').value,
+      currency: $('currency').value, taxRate: 0, discount: 0,
+      notes: 'Thanks for the work! Payment due within 14 days.',
+      items: [{ desc: '', qty: 1, rate: 0 }] });
+    $('issueDate').valueAsDate = new Date();
+  });
+
+  function nextNumberGuess() {
+    const docs = loadDocs();
+    const n = docs.length + 1;
+    return 'INV-' + String(n).padStart(4, '0');
+  }
+  function bumpInvoiceNumber() {
+    const cur = $('docNumber').value;
+    const m = cur.match(/^(.*?)(\d+)$/);
+    if (m) {
+      const num = (parseInt(m[2], 10) + 1).toString().padStart(m[2].length, '0');
+      $('docNumber').value = m[1] + num;
+      renderPreview();
+    }
+  }
+
+  // ---------- Print ----------
+  $('printBtn').addEventListener('click', () => window.print());
+
+  // ---------- Unlock (real Stripe integration) ----------
+  // API_BASE: same-origin by default. If your backend lives on a different
+  // domain than this page, set it to that domain instead, e.g. 'https://api.yoursite.com'.
+  const API_BASE = '';
+
+  function setUnlockedUI(email) {
+    unlocked = true;
+    try {
+      localStorage.setItem('ledger_unlocked', 'true');
+      if (email) localStorage.setItem('ledger_email', email);
+    } catch(e) {}
+    $('unlockNote').style.display = 'none';
+    $('unlockedNote').style.display = 'block';
+    $('unlockedEmail').textContent = email || (localStorage.getItem('ledger_email') || '');
+    renderPreview();
+  }
+
+  $('unlockBtn').addEventListener('click', async () => {
+    const email = prompt('Enter your email — we\'ll use it to remember your unlock and send your receipt:');
+    if (!email) return;
+    const btn = $('unlockBtn');
+    const original = btn.textContent;
+    btn.textContent = 'Redirecting to checkout…';
+    btn.disabled = true;
+    try {
+      const res = await fetch(`${API_BASE}/api/create-checkout-session`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email })
+      });
+      const data = await res.json();
+      if (data.url) {
+        try { localStorage.setItem('ledger_email', email); } catch(e) {}
+        window.location.href = data.url;
+      } else {
+        alert(data.error || 'Something went wrong starting checkout.');
+        btn.textContent = original;
+        btn.disabled = false;
+      }
+    } catch (err) {
+      alert('Could not reach the server. Please try again.');
+      btn.textContent = original;
+      btn.disabled = false;
+    }
+  });
+
+  async function checkUnlockStatus() {
+    // 1) If Stripe just redirected back here after a successful payment, trust it
+    //    for immediate UI feedback, then confirm silently with the server.
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('unlocked') === '1') {
+      const email = localStorage.getItem('ledger_email') || '';
+      setUnlockedUI(email);
+      window.history.replaceState({}, '', window.location.pathname);
+      return;
+    }
+    // 2) Otherwise, if we know this browser's email, ask the server whether
+    //    it's unlocked — this is what makes the unlock follow the user across devices.
+    const email = localStorage.getItem('ledger_email');
+    if (!email) return;
+    try {
+      const res = await fetch(`${API_BASE}/api/check-unlock?email=${encodeURIComponent(email)}`);
+      const data = await res.json();
+      if (data.unlocked) setUnlockedUI(email);
+    } catch (e) { /* offline or backend not deployed yet — fail silently */ }
+  }
+
+  // ---------- Init ----------
+  $('issueDate').valueAsDate = new Date();
+  const due = new Date(); due.setDate(due.getDate() + 14);
+  $('dueDate').valueAsDate = due;
+  $('docNumber').value = nextNumberGuess();
+  renderItems();
+  renderPreview();
+  renderSavedList();
+  checkUnlockStatus();
+})();
+</script>
+</body>
+</html>
