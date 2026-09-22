@@ -1,6 +1,1 @@
-{
-  "version": 2,
-  "functions": {
-    "api/**/*.js": {}
-  }
-}
+"version":2
