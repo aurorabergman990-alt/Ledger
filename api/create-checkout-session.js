@@ -20,7 +20,7 @@ module.exports = async (req, res) => {
   try {
     const session = await stripe.checkout.sessions.create({
       mode: 'payment',
-     customer_email: email,
+      customer_email: email,
       managed_payments: { enabled: true },
       line_items: [
         {
@@ -28,9 +28,10 @@ module.exports = async (req, res) => {
             currency: 'usd',
             product_data: {
               name: 'Ledger — Remove watermark (lifetime)',
-              description: 'Removes the "Made with Ledger" mark from all your invoices and quotes, forever.'
+              description: 'Removes the "Made with Ledger" mark from all your invoices and quotes, forever.',
+              tax_code: 'txcd_10103001'
             },
-            unit_amount: 900 // $9.00, in cents
+            unit_amount: 900
           },
           quantity: 1
         }
